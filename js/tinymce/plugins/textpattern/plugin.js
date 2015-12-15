@@ -15,8 +15,10 @@ tinymce.PluginManager.add('textpattern', function(editor) {
 
 	patterns = editor.settings.textpattern_patterns || [
 		{start: '*', end: '*', format: 'italic'},
-		{start: '**', end: '**', format: 'bold'},
+		{start: '**', end: '**', format: 'bold'}, , //output word
+		{start: '**', end: '**', format: 'bold', transclude: false}, //output **word**
 		{start: '#', format: 'h1'},
+		{start: '##', format: 'h2'}
 		{start: '##', format: 'h2'},
 		{start: '###', format: 'h3'},
 		{start: '####', format: 'h4'},
@@ -82,13 +84,21 @@ tinymce.PluginManager.add('textpattern', function(editor) {
 	// Handles inline formats like *abc* and **abc**
 	function applyInlineFormat(space) {
 		var selection, dom, rng, container, offset, startOffset, text, patternRng, pattern, delta, format;
-
-		function splitContainer() {
+        
+        function splitContainer() {
 			// Split text node and remove start/end from text node
 			container = container.splitText(startOffset);
+
 			container.splitText(offset - startOffset - delta);
-			container.deleteData(0, pattern.start.length);
-			container.deleteData(container.data.length - pattern.end.length, pattern.end.length);
+
+            if(pattern.transclude !== false){
+                container.deleteData(0, pattern.start.length);
+                container.deleteData(container.data.length - pattern.end.length, pattern.end.length);
+            }
+            else {
+                container.deleteData(container.data.length, pattern.end.length);
+            }
+            container.data = container.data;
 		}
 
 		selection = editor.selection;
@@ -99,12 +109,13 @@ tinymce.PluginManager.add('textpattern', function(editor) {
 		}
 
 		rng = selection.getRng(true);
-		container = rng.startContainer;
+
+        container = rng.startContainer;
 		offset = rng.startOffset;
 		text = container.data;
 		delta = space ? 1 : 0;
 
-		if (container.nodeType != 3) {
+        if (container.nodeType != 3) {
 			return;
 		}
 
@@ -138,9 +149,10 @@ tinymce.PluginManager.add('textpattern', function(editor) {
 			return;
 		}
 
-		format = editor.formatter.get(pattern.format);
+       	format = editor.formatter.get(pattern.format);
 		if (format && format[0].inline) {
 			splitContainer();
+
 			editor.formatter.apply(pattern.format, {}, container);
 			return container;
 		}
@@ -211,8 +223,11 @@ tinymce.PluginManager.add('textpattern', function(editor) {
 		var rng, wrappedTextNode;
 
 		wrappedTextNode = applyInlineFormat();
+
 		if (wrappedTextNode) {
 			rng = editor.dom.createRng();
+
+
 			rng.setStart(wrappedTextNode, wrappedTextNode.data.length);
 			rng.setEnd(wrappedTextNode, wrappedTextNode.data.length);
 			editor.selection.setRng(rng);
